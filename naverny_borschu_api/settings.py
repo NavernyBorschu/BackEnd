@@ -123,13 +123,13 @@ LANGUAGES = [
 
 
 # Статичні файли (CSS, JS, images)
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'  # Директива для збору статичних файлів
 
 # Медіа файли (завантаження користувачів)
 # MEDIA_ROOT та MEDIA_URL для завантаження фото борщів; поки що використовується
 # тривіальне зберігання у локальній директорії media/
-MEDIA_URL = 'media/'
+MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # Тип первинного ключа за замовчуванням
