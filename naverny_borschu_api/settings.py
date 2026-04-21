@@ -15,8 +15,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Секретний ключ для криптографічних операцій
 SECRET_KEY = 'django-insecure-change-this-in-production'
 
-# Режим відлагодження (у production вимкнути!)
-DEBUG = True
+DEBUG = False
 
 # Дозволені хости (у production додати реальні домени)
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
