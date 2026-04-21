@@ -5,4 +5,4 @@ set -euo pipefail
 # Використання:
 #   bash run_tests.sh
 
-python manage.py test core.tests.test_api -v 2 --settings=naverny_borschu_api.settings_test
+python manage.py test core.tests -v 2 --settings=naverny_borschu_api.settings_test
