@@ -5,6 +5,7 @@
 ## 📚 Зміст
 
 - [Швидкий старт](#швидкий-старт)
+- [Змінні середовища](#змінні-середовища)
 - [Список endpoint'ів](#список-endpointів)
 - [Авторизація](#авторизація)
 - [Приклади запитів (cURL)](#приклади-запитів-curl)
@@ -31,7 +32,30 @@ Production: https://api.naverny-borschu.com/api
 
 ---
 
+## Змінні середовища
+
+| Змінна | Опис |
+|--------|------|
+| `GOOGLE_OAUTH_CLIENT_IDS` | Один або кілька **OAuth 2.0 Client ID** з Google Cloud Console (Web / iOS / Android), через кому. Можна задати одне значення через `GOOGLE_OAUTH_CLIENT_ID`. |
+| `DB_ENGINE` | `sqlite` (за замовчуванням, локально) або `postgres` для PostgreSQL. |
+| `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` | Параметри БД, якщо `DB_ENGINE=postgres`. |
+
+Після оновлення залежностей застосуйте міграції (у тому числі для JWT refresh blacklist):
+
+```bash
+python manage.py migrate
+```
+
+---
+
 ## 📋 Список endpoint'ів
+
+### Auth (Google + JWT)
+
+| Метод | Endpoint | Опис | Авторизація |
+|-------|----------|------|-------------|
+| POST | `/api/auth/google/` | Обмін Google `id_token` на JWT (`access`, `refresh`) + об'єкти `user` та `profile` | ❌ |
+| POST | `/api/auth/token/refresh/` | Видати новий `access` (і при ротації — новий `refresh`) за дійсним `refresh` | ❌ |
 
 ### Places (Заклади)
 
@@ -110,31 +134,62 @@ Production: https://api.naverny-borschu.com/api
 
 ### Як це працює
 
-Більшість ендпоінтів для **створення**, **оновлення** та **видалення** вимагають авторизації.
-
-**Публічні ендпоінти (GET):**
-- Отримання списків закладів, борщів, відгуків
-- Перегляд типів закладів та користувачів
-
-**Приватні ендпоінти (POST, PATCH, DELETE):**
-- Створення/оновлення/видалення закладів, борщів, відгуків
-- Управління профілем та обраними борщами
-
-### Формат токена
-
-Якщо використовується токенна авторизація, додавайте заголовок:
+1. Клієнт інтегрує **Google Sign-In** і отримує **`id_token`** (JWT від Google).
+2. Клієнт надсилає цей токен на **`POST /api/auth/google/`**.
+3. Бекенд перевіряє підпис і `aud` (ваш Google OAuth Client ID), створює або оновлює **`User`** та **`UserProfile`**, повертає **JWT**:
+   - **`access`** — короткоживучий токен для API;
+   - **`refresh`** — довгоживучий токен для оновлення `access`.
+4. Для захищених операцій додавайте заголовок:
 
 ```
-Authorization: Bearer <your-token>
+Authorization: Bearer <access>
 ```
 
-### Примітка для фронтенду
+5. Коли `access` прострочився:
 
-На даний момент авторизація реалізована через Django session/auth. Для Google OAuth інтеграції потрібно буде додати додатковий ендпоінт `/api/auth/google/` (планується).
+```http
+POST /api/auth/token/refresh/
+Content-Type: application/json
+
+{"refresh": "<refresh>"}
+```
+
+Відповідь містить новий `access` (а при увімкненій ротації refresh у проєкті — також новий `refresh`; старий refresh після ротації вважається відкликаним через blacklist).
+
+### Публічні та приватні ендпоінти
+
+**Без токена (типово GET):** списки закладів, борщів, відгуків, довідники тощо.
+
+**З токеном (POST / PATCH / DELETE):** створення та зміна сутностей, профіль, обране, завантаження фото.
+
+### Помилки при Google-вході
+
+| HTTP | Причина |
+|------|---------|
+| 400 | Невалідний `id_token`, прострочений токен, не підтверджений email у Google, не налаштовані `GOOGLE_OAUTH_CLIENT_IDS` на сервері |
+| 409 | Конфлікт прив’язки: локальний профіль уже має інший `google_id` для цього email |
 
 ---
 
 ## 📝 Приклади запитів (cURL)
+
+### Увійти через Google (отримати JWT)
+
+Після Google Sign-In на клієнті візьміть `id_token` і надішліть:
+
+```bash
+curl -X POST "http://localhost:8000/api/auth/google/" \
+  -H "Content-Type: application/json" \
+  -d '{"id_token": "<google-id-token>"}'
+```
+
+У відповіді будуть поля `access`, `refresh`, `user`, `profile`. Далі використовуйте:
+
+```bash
+curl -X POST "http://localhost:8000/api/auth/token/refresh/" \
+  -H "Content-Type: application/json" \
+  -d '{"refresh": "<refresh>"}'
+```
 
 ### Отримати список закладів
 
@@ -431,13 +486,6 @@ async function uploadBorschPhoto(borschId, file) {
 | 403 | Недостатньо прав | `{"error": "Ви можете редагувати тільки власні відгуки"}` |
 | 404 | Ресурс не знайдено | `{"error": "Ресурс не знайдено"}` |
 | 500 | Помилка сервера | `{"error": "Внутрішня помилка сервера"}` |
-
----
-
-## 🔗 Корисні посилання
-
-- [OpenAPI специфікація](openapi.yaml) — повна документація у форматі OpenAPI 3.1
-- [API Architecture Document](API_ARCHITECTURE_DOCUMENT.md) — архітектура та моделі даних
 
 ---
 
