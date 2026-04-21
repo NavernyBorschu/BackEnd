@@ -12,8 +12,10 @@ info:
     - Обрані борщі (Favorites)
     
     ## Авторизація
-    Більшість ендпоінтів для створення/оновлення/видалення вимагають авторизації.
-    Публічні ендпоінти (GET) доступні без авторизації.
+    Реєстрація та вхід — через **Google Sign-In**: клієнт надсилає `id_token` на
+    `POST /auth/google/` і отримує JWT (`access`, `refresh`). Для захищених операцій
+    використовуйте заголовок `Authorization: Bearer <access>`. Оновлення access —
+    `POST /auth/token/refresh/` з телом `{"refresh": "..."}`.
   version: 1.0.0
   contact:
     name: Naverny Borschu Team
@@ -25,6 +27,8 @@ servers:
     description: Production сервер
 
 tags:
+  - name: Auth
+    description: Google OAuth та JWT (access / refresh)
   - name: Places
     description: Заклади харчування (ресторани, кафе тощо)
   - name: Borsches
@@ -41,6 +45,63 @@ tags:
     description: Користувачі системи
 
 paths:
+  /auth/google/:
+    post:
+      tags:
+        - Auth
+      summary: Вхід через Google (обмін id_token на JWT)
+      description: |
+        Перевіряє Google ID token, створює або оновлює користувача та профіль,
+        повертає пару JWT та серіалізовані `user` і `profile`.
+      operationId: authGoogle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoogleIdTokenRequest'
+      responses:
+        '200':
+          description: Успішна авторизація
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoogleAuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Конфлікт прив'язки Google до локального акаунта
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /auth/token/refresh/:
+    post:
+      tags:
+        - Auth
+      summary: Оновити access JWT за refresh
+      operationId: authTokenRefresh
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+      responses:
+        '200':
+          description: Нові токени
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefreshResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /place-types/:
     get:
       tags:
@@ -1087,6 +1148,56 @@ components:
       example: "c4f2d26e-9b1b-4a21-9c8a-1a6d3c251234"
 
   schemas:
+    # ==========================================================================
+    # Auth (Google + JWT)
+    # ==========================================================================
+    GoogleIdTokenRequest:
+      type: object
+      required:
+        - id_token
+      properties:
+        id_token:
+          type: string
+          description: Google ID token (JWT) з Google Sign-In
+
+    GoogleAuthResponse:
+      type: object
+      required:
+        - access
+        - refresh
+        - user
+        - profile
+      properties:
+        access:
+          type: string
+          description: JWT access
+        refresh:
+          type: string
+          description: JWT refresh
+        user:
+          $ref: '#/components/schemas/User'
+        profile:
+          $ref: '#/components/schemas/UserProfile'
+
+    TokenRefreshRequest:
+      type: object
+      required:
+        - refresh
+      properties:
+        refresh:
+          type: string
+
+    TokenRefreshResponse:
+      type: object
+      required:
+        - access
+        - refresh
+      properties:
+        access:
+          type: string
+        refresh:
+          type: string
+
     # ==========================================================================
     # PlaceType
     # ==========================================================================
