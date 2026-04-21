@@ -16,7 +16,9 @@
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import TokenRefreshView
 
+from .views_auth import GoogleAuthView
 from .viewsets import (
     PlaceTypeViewSet,
     PlaceViewSet,
@@ -44,6 +46,8 @@ router.register(r'users', UserViewSet, basename='user')
 
 # URL patterns для API
 urlpatterns = [
+    path('auth/google/', GoogleAuthView.as_view(), name='auth-google'),
+    path('auth/token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
     # Всі маршрути від роутера
     path('', include(router.urls)),
 ]
