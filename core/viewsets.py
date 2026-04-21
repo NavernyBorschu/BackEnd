@@ -211,9 +211,10 @@ class BorschViewSet(viewsets.ModelViewSet):
         file_extension = os.path.splitext(photo_file.name)[1]
         unique_filename = f"{uuid.uuid4().hex}{file_extension}"
         
-        # Шлях для збереження
-        upload_path = os.path.join('borsches', str(borsch.id), 'photos')
-        full_path = os.path.join(settings.MEDIA_ROOT, upload_path)
+        # Шлях для збереження (URL завжди з прямими слешами; шлях на диску — окремо)
+        rel = ('borsches', str(borsch.id), 'photos')
+        upload_path = '/'.join(rel)
+        full_path = os.path.join(settings.MEDIA_ROOT, *rel)
         
         # Створення директорії якщо не існує
         os.makedirs(full_path, exist_ok=True)
