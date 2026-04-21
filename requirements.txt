@@ -6,3 +6,4 @@ google-auth>=2.29         # Верифікація Google ID token
 psycopg2-binary>=2.9      # PostgreSQL адаптер (опціонально, для production)
 pillow>=10.0              # Робота з зображеннями (фото борщів)
 pytest-django>=4.5        # Тестування Django проєкту
+requests>=2.31.0
