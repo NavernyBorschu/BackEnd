@@ -6,6 +6,7 @@
 """
 
 import os
+from datetime import timedelta
 from pathlib import Path
 
 # Базова директорія проєкту
@@ -32,7 +33,8 @@ INSTALLED_APPS = [
     
     # Сторонні додатки
     'rest_framework',           # Django REST Framework
-    
+    'rest_framework_simplejwt.token_blacklist',
+
     # Локальні додатки
     'core',                     # Основний API додаток
 ]
@@ -138,8 +140,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Налаштування Django REST Framework
 REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.AllowAny',  # Тимчасово: доступ без авторизації
+        'rest_framework.permissions.AllowAny',
     ],
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',  # Тільки JSON відповіді
@@ -148,3 +153,21 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,  # Кількість записів на сторінку
 }
+
+# JWT (access / refresh). Refresh зберігається у БД (blacklist) при ротації.
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=14),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': True,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
+
+# Google Sign-In: один або кілька OAuth 2.0 Client ID (Web / iOS / Android), через кому.
+# Приклад: GOOGLE_OAUTH_CLIENT_IDS=xxx.apps.googleusercontent.com,yyy.apps.googleusercontent.com
+_raw_google_ids = os.getenv(
+    'GOOGLE_OAUTH_CLIENT_IDS',
+    os.getenv('GOOGLE_OAUTH_CLIENT_ID', ''),
+)
+GOOGLE_OAUTH_CLIENT_IDS = [x.strip() for x in _raw_google_ids.split(',') if x.strip()]
