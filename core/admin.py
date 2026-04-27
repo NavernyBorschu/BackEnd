@@ -13,6 +13,7 @@
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 from .models import PlaceType, Place, Borsch, UserProfile, Review, FavoriteBorsch
+from . import admin_extra  # noqa: F401  (додає кастомні сторінки в /admin/)
 
 
 # =============================================================================

@@ -1,0 +1,22 @@
+{% extends "admin/base_site.html" %}
+
+{# Додаємо кастомні пункти в сайдбар без зміни БД #}
+{% block nav-sidebar %}
+  {{ block.super }}
+  <div class="module" style="margin-top: 12px;">
+    <table>
+      <caption>Кастомні сторінки</caption>
+      <tbody>
+        <tr>
+          <th scope="row"><a href="{% url 'admin:analytics' %}">Аналітика</a></th>
+          <td>&nbsp;</td>
+        </tr>
+        <tr>
+          <th scope="row"><a href="{% url 'admin:stats' %}">Статистика</a></th>
+          <td>&nbsp;</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+{% endblock %}
+

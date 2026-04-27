@@ -1,0 +1,47 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+  <div id="content-main">
+    <h1>{{ title }}</h1>
+
+    <div class="module">
+      <table>
+        <caption>{% trans "Загальне" %}</caption>
+        <tbody>
+          <tr><th>{% trans "Згенеровано (UTC)" %}</th><td>{{ stats.generated_at_utc|date:"Y-m-d H:i:s" }}</td></tr>
+          <tr><th>{% trans "Uptime (сек)" %}</th><td>{{ stats.uptime_seconds }}</td></tr>
+          <tr><th>{% trans "Python" %}</th><td>{{ stats.python_version }}</td></tr>
+          <tr><th>{% trans "Django" %}</th><td>{{ stats.django_version }}</td></tr>
+          <tr><th>{% trans "DEBUG" %}</th><td>{{ stats.debug }}</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="module">
+      <table>
+        <caption>{% trans "Налаштування" %}</caption>
+        <tbody>
+          <tr><th>ALLOWED_HOSTS</th><td>{{ stats.allowed_hosts|join:", " }}</td></tr>
+          <tr><th>BASE_DIR</th><td><code>{{ stats.base_dir }}</code></td></tr>
+          <tr><th>STATIC_ROOT</th><td><code>{{ stats.static_root }}</code></td></tr>
+          <tr><th>MEDIA_ROOT</th><td><code>{{ stats.media_root }}</code></td></tr>
+          <tr><th>{% trans "Media файлів" %}</th><td>{{ stats.media_files_count }}</td></tr>
+          <tr><th>{% trans "Media розмір (bytes)" %}</th><td>{{ stats.media_total_bytes }}</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="module">
+      <table>
+        <caption>{% trans "Система" %}</caption>
+        <tbody>
+          <tr><th>{% trans "Platform" %}</th><td>{{ stats.os_platform }}</td></tr>
+          <tr><th>{% trans "Machine" %}</th><td>{{ stats.machine }}</td></tr>
+          <tr><th>{% trans "Processor" %}</th><td>{{ stats.processor }}</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}
+

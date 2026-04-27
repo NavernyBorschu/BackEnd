@@ -1,0 +1,265 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+  <div id="content-main">
+    <h1>{{ title }}</h1>
+
+    <div class="module" style="padding: 12px;">
+      <form id="analytics-controls" style="display:flex; gap:12px; align-items:center; flex-wrap: wrap;">
+        <label>
+          {% trans "Період (днів)" %}:
+          <select id="days" name="days">
+            <option value="7">7</option>
+            <option value="14">14</option>
+            <option value="30" selected>30</option>
+            <option value="60">60</option>
+            <option value="90">90</option>
+            <option value="180">180</option>
+            <option value="365">365</option>
+          </select>
+        </label>
+
+        <button type="button" class="button default" id="refresh">{% trans "Оновити" %}</button>
+        <span id="meta" style="color: var(--body-quiet-color);"></span>
+      </form>
+    </div>
+
+    <div class="module" style="padding: 12px;">
+      <h2 style="margin: 0 0 12px;">{% trans "Нові користувачі (реєстрація) за день" %}</h2>
+      <div style="position: relative; height: 340px;">
+        <canvas id="chartUsersNew"></canvas>
+      </div>
+    </div>
+
+    <div class="module" style="padding: 12px;">
+      <h2 style="margin: 0 0 12px;">{% trans "Активність за день" %}</h2>
+      <div style="position: relative; height: 360px;">
+        <canvas id="chartActivity"></canvas>
+      </div>
+      <p class="help" style="margin-top: 10px;">
+        {% trans "Активність рахується за створенням сутностей: відгуки, обране, додані заклади та борщі." %}
+      </p>
+    </div>
+
+    <div class="module" style="padding: 12px;">
+      <h2 style="margin: 0 0 12px;">{% trans "Розріз по містах (топ за період)" %}</h2>
+      <div style="display:grid; grid-template-columns: 1fr; gap: 14px;">
+        <div style="position: relative; height: 320px;">
+          <canvas id="chartCitiesReviews"></canvas>
+        </div>
+        <div style="position: relative; height: 320px;">
+          <canvas id="chartCitiesFavorites"></canvas>
+        </div>
+        <div style="position: relative; height: 320px;">
+          <canvas id="chartCitiesPlaces"></canvas>
+        </div>
+        <div style="position: relative; height: 320px;">
+          <canvas id="chartCitiesBorsches"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    (function () {
+      const els = {
+        days: document.getElementById('days'),
+        refresh: document.getElementById('refresh'),
+        meta: document.getElementById('meta'),
+      };
+
+      const charts = {
+        usersNew: null,
+        activity: null,
+        citiesReviews: null,
+        citiesFavorites: null,
+        citiesPlaces: null,
+        citiesBorsches: null,
+      };
+
+      function fmtInt(n) {
+        try { return new Intl.NumberFormat().format(n); } catch (_) { return String(n); }
+      }
+
+      function destroyChart(c) {
+        if (c) { try { c.destroy(); } catch (_) {} }
+      }
+
+      function makeLineChart(ctx, {labels, datasets}) {
+        return new Chart(ctx, {
+          type: 'line',
+          data: { labels, datasets },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { position: 'top' },
+              tooltip: { enabled: true },
+            },
+            scales: {
+              y: { beginAtZero: true, ticks: { precision: 0 } },
+              x: { ticks: { maxTicksLimit: 12 } },
+            }
+          }
+        });
+      }
+
+      function makeBarChart(ctx, {labels, datasetLabel, values}) {
+        return new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [{
+              label: datasetLabel,
+              data: values,
+              backgroundColor: 'rgba(30, 136, 229, 0.35)',
+              borderColor: 'rgba(30, 136, 229, 0.9)',
+              borderWidth: 1,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: true },
+              tooltip: { enabled: true },
+            },
+            scales: {
+              y: { beginAtZero: true, ticks: { precision: 0 } },
+              x: { ticks: { maxRotation: 0, autoSkip: true } },
+            }
+          }
+        });
+      }
+
+      async function loadData() {
+        const days = els.days.value || '30';
+        const url = "{% url 'admin:analytics-data' %}" + "?days=" + encodeURIComponent(days);
+        const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return await res.json();
+      }
+
+      function render(payload) {
+        const labels = payload.labels || [];
+        const s = (payload.series || {});
+
+        els.meta.textContent = `Оновлено: ${payload.generated_at || ''}. Період: ${payload.days} днів.`;
+
+        destroyChart(charts.usersNew);
+        charts.usersNew = makeLineChart(
+          document.getElementById('chartUsersNew'),
+          {
+            labels,
+            datasets: [{
+              label: 'Нові користувачі',
+              data: s.users_new || [],
+              borderColor: 'rgba(67, 160, 71, 0.95)',
+              backgroundColor: 'rgba(67, 160, 71, 0.15)',
+              tension: 0.25,
+              fill: true,
+            }]
+          }
+        );
+
+        destroyChart(charts.activity);
+        charts.activity = makeLineChart(
+          document.getElementById('chartActivity'),
+          {
+            labels,
+            datasets: [
+              {
+                label: 'Відгуки',
+                data: s.reviews || [],
+                borderColor: 'rgba(30, 136, 229, 0.95)',
+                backgroundColor: 'rgba(30, 136, 229, 0.12)',
+                tension: 0.25,
+                fill: false,
+              },
+              {
+                label: 'Обране',
+                data: s.favorites || [],
+                borderColor: 'rgba(245, 124, 0, 0.95)',
+                backgroundColor: 'rgba(245, 124, 0, 0.12)',
+                tension: 0.25,
+                fill: false,
+              },
+              {
+                label: 'Заклади',
+                data: s.places || [],
+                borderColor: 'rgba(142, 36, 170, 0.95)',
+                backgroundColor: 'rgba(142, 36, 170, 0.12)',
+                tension: 0.25,
+                fill: false,
+              },
+              {
+                label: 'Борщі',
+                data: s.borsches || [],
+                borderColor: 'rgba(0, 121, 107, 0.95)',
+                backgroundColor: 'rgba(0, 121, 107, 0.12)',
+                tension: 0.25,
+                fill: false,
+              },
+            ]
+          }
+        );
+
+        const top = payload.top_cities || {};
+        function toBar(targetId, key, label) {
+          const rows = (top[key] || []);
+          const cities = rows.map(r => r.city);
+          const values = rows.map(r => r.count);
+          return makeBarChart(document.getElementById(targetId), {
+            labels: cities,
+            datasetLabel: label,
+            values
+          });
+        }
+
+        destroyChart(charts.citiesReviews);
+        charts.citiesReviews = toBar('chartCitiesReviews', 'reviews', 'Відгуки по містах (топ)');
+
+        destroyChart(charts.citiesFavorites);
+        charts.citiesFavorites = toBar('chartCitiesFavorites', 'favorites', 'Обране по містах (топ)');
+
+        destroyChart(charts.citiesPlaces);
+        charts.citiesPlaces = toBar('chartCitiesPlaces', 'places', 'Нові заклади по містах (топ)');
+
+        destroyChart(charts.citiesBorsches);
+        charts.citiesBorsches = toBar('chartCitiesBorsches', 'borsches', 'Нові борщі по містах (топ)');
+
+        // Маленький бонус: сумарні значення в тултіпах уже є, але швидкий підрахунок теж корисний.
+        const totals = {
+          users: (s.users_new || []).reduce((a,b)=>a+(b||0),0),
+          reviews: (s.reviews || []).reduce((a,b)=>a+(b||0),0),
+          favorites: (s.favorites || []).reduce((a,b)=>a+(b||0),0),
+          places: (s.places || []).reduce((a,b)=>a+(b||0),0),
+          borsches: (s.borsches || []).reduce((a,b)=>a+(b||0),0),
+        };
+        els.meta.textContent += ` Σ: users=${fmtInt(totals.users)}, reviews=${fmtInt(totals.reviews)}, favorites=${fmtInt(totals.favorites)}, places=${fmtInt(totals.places)}, borsches=${fmtInt(totals.borsches)}.`;
+      }
+
+      async function refresh() {
+        els.refresh.disabled = true;
+        els.refresh.textContent = 'Оновлення...';
+        try {
+          const payload = await loadData();
+          render(payload);
+        } catch (e) {
+          els.meta.textContent = 'Помилка завантаження даних: ' + (e && e.message ? e.message : String(e));
+        } finally {
+          els.refresh.disabled = false;
+          els.refresh.textContent = 'Оновити';
+        }
+      }
+
+      els.refresh.addEventListener('click', refresh);
+      els.days.addEventListener('change', refresh);
+      refresh();
+    })();
+  </script>
+{% endblock %}
+
