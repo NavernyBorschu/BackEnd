@@ -35,13 +35,8 @@ jobs:
             -H "Content-Type: application/json" \
             -H "X-Hub-Signature-256: sha256=$(echo -n '${{ toJson(github) }}' | openssl dgst -sha256 -hmac '${{ secrets.WEBHOOK_SECRET }}' | cut -d' ' -f2)" \
             -d '${{ toJson(github) }}'
-      
-      - name: Debug paths
-        run: |
-          pwd
-          ls -la
 
       - name: Collect static
-        working-directory: ./BackEnd
+        env:
+          DJANGO_SETTINGS_MODULE: naverny_borschu_api.settings
         run: python manage.py collectstatic --noinput
-      
